@@ -5,6 +5,8 @@ from leap import Leap, Mouse
 from PalmControl import Palm_Control_Listener  #For palm-tilt based control
 from FingerControl import Finger_Control_Listener  #For finger-pointing control
 from MotionControl import Motion_Control_Listener  #For motion control
+from TouchControl import TouchControlListener
+import time
 
 def show_help():
     print "----------------------------------PyLeapMouse----------------------------------"
@@ -23,50 +25,51 @@ def main():
     print "Use -h or --help for more info.\n"
 
     #Default
-    finger_mode = True
-    palm_mode = False
-    motion_mode = False
+    mode= 'finger'
     smooth_aggressiveness = 8
     smooth_falloff = 1.3
 
     for i in range(0,len(sys.argv)):
         arg = sys.argv[i].lower()
         if "--palm" in arg:
-            finger_mode = False
-            palm_mode = True
-            motion_mode = False
+            mode='palm'
         if "--motion" in arg:
-            finger_mode = False
-            palm_mode = False
-            motion_mode = True
+            mode='motion'
+        if "--touch" in arg:
+            mode= 'touch'
         if "--smooth-falloff" in arg:
             smooth_falloff = float(sys.argv[i+1])
         if "--smooth-aggressiveness" in arg:
             smooth_aggressiveness = int(sys.argv[i+1])
 
-    listener = None;  #I'm tired and can't think of a way to organize this segment nicely
-
-    #Create a custom listener object which controls the mouse
-    if finger_mode:  #Finger pointer mode
-        listener = Finger_Control_Listener(Mouse, smooth_aggressiveness=smooth_aggressiveness, smooth_falloff=smooth_falloff)
-        print "Using finger mode..."
-    elif palm_mode:  #Palm control mode
-        listener = Palm_Control_Listener(Mouse)
-        print "Using palm mode..."
-    elif motion_mode:  #Motion control mode
-        listener = Motion_Control_Listener(Mouse)
-        print "Using motion mode..."
-
 
     controller = Leap.Controller()  #Get a Leap controller
     controller.set_policy_flags(Leap.Controller.POLICY_BACKGROUND_FRAMES)
+    #Create a custom listener object which controls the mouse
+    listener = None;  #I'm tired and can't think of a way to organize this segment nicely
+    print "Using {} mode...".format( mode )
+    if mode == 'finger':  #Finger pointer mode
+        listener = Finger_Control_Listener(Mouse, smooth_aggressiveness=smooth_aggressiveness, smooth_falloff=smooth_falloff)
+    elif mode == 'palm':  #Palm control mode
+        listener = Palm_Control_Listener(Mouse)
+    elif mode == 'motion':  #Motion control mode
+        listener = Motion_Control_Listener(Mouse)
+    elif mode == 'touch':  #Touchscreen mode
+        listener= TouchControlListener( controller )
+
     print "Adding Listener."
     controller.add_listener(listener)  #Attach the listener
 
-    #Keep this process running until Enter is pressed
-    print "Press Enter to quit..."
-    sys.stdin.readline()
-    #Remove the sample listener when done
-    controller.remove_listener(listener)
+    #Keep this process running until Ctrl-C is pressed
+    print "Press Ctrl-C to quit..."
+    try:
+        while True:
+            listener.tap_listener.g.draw()
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        return
+    finally:
+        #Remove the sample listener when done
+        controller.remove_listener(listener)
 
 main()

@@ -4,7 +4,7 @@
 
 
 import math
-from leap import Leap
+import threading
 import Geometry
 
 #Smooths the mouse's position
@@ -139,3 +139,33 @@ def finger_vectors_intersect(finger1, finger2, vector_length, tolerance):
     if minimum_distance <= tolerance:
         return True
     return False
+
+class AsyncLineInput(threading.Thread):
+    '''non-blocking raw_input() with callback'''
+    def __init__(self):
+        super(AsyncLineInput, self).__init__()
+        self.daemon= True
+        self._callback= None
+        self._work_to_do= threading.Event()
+        self._callback_lock= threading.Lock()
+    def raw_input(self, callback):
+        '''Note the callback is executed in the input gathering thread - 
+        one callback cannot run until the previous one has returned'''
+        if not self.isAlive():
+            #first time calling this method, the thread is not running yet
+            self.start()
+        with self._callback_lock:
+            if self._callback is not None:
+                raise Exception("Already waiting for input (or executing previous callback)")
+            self._callback= callback
+        self._work_to_do.set()
+    def run(self):
+        while True:
+            self._work_to_do.wait()
+            with self._callback_lock:
+                callback= self._callback
+                self._callback= None
+            data= raw_input()
+            callback( data )
+    
+ 
